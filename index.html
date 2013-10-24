@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>
+            d3BoxPlot
+        </title>
+        <meta charset="utf-8">
+        <style>
+
+            body {
+                font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+            }
+            .axis{
+                font: 10px sans-serif;
+            }
+            .axis path,
+            .axis line {
+              fill: none;
+              stroke: #888;
+              stroke-opacity: .2;
+              shape-rendering: crispEdges;
+            }
+
+            .x.axis path {
+              fill: none;
+              stroke: #666;
+              shape-rendering: crispEdges;
+            }
+            .y.axis path {
+              fill: none;
+              stroke: #666;
+              shape-rendering: crispEdges;
+            }
+
+            .box {
+                font: 8px sans-serif;
+            }
+
+            .box line,
+            .box rect,
+            .box circle {
+                fill: #9cf;
+                stroke: #000;
+                stroke-width: 0.5px;
+            }
+
+            .box .center {
+                stroke-dasharray: 2,1;
+            }
+
+            .box .outlier {
+                fill: none;
+                stroke: #ccc;
+            }
+
+        </style>
+    </head>
+    <body>
+        <script src="http://d3js.org/d3.v3.min.js"></script>
+        <script src="box.js"></script>
+        <script>
+
+            var margin = {top: 10, right: 15, bottom: 20, left: 15},
+                width  = 42  - margin.left - margin.right,
+                height = 500 - margin.top - margin.bottom;
+
+            var min = Infinity,
+                max = -Infinity;
+
+            var chart = d3.box()
+                    .whiskers(tenths(1.5))
+                    .width(width)
+                    .height(height);
+            
+            var parseDate = d3.time.format("%Y%m%d").parse;
+            
+            var x = d3.time.scale()
+                    .range([0, (width + margin.left + margin.right)*12]);
+
+            var y = d3.scale.linear()
+                    .range([height, 0]);
+            
+            var xAxis = d3.svg.axis()
+                    .scale(x)
+                    .orient("bottom")
+                    .tickSize(-height);
+
+            var yAxis = d3.svg.axis()
+                    .scale(y)
+                    .orient("left")
+                    .tickSize(-width);
+            
+            var svg = d3.select("body").append("svg")
+                    .attr("width", (12 * (width + margin.left + margin.right)))
+                    .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+            d3.csv("weather.csv", function(error, csv) {
+                var data = [];
+
+                csv.forEach(function(x) {
+                    var e = Math.floor(x.month - 1),
+                        r = Math.floor(x.year - 1),
+                        s = Math.floor(x.mean),
+                        d = data[e];
+                        
+                    if (!d)
+                        d = data[e] = [s];
+                    else
+                        d.push(s);
+                    
+                    if (s > max)
+                        max = s;
+                    if (s < min)
+                        min = s;
+                });
+
+                chart.domain([min, max]);
+                x.domain([parseDate(new Date().getFullYear()+"0101"),parseDate(((new Date().getFullYear()))+"1231")]);
+                y.domain([min, max]);
+
+                svg.selectAll(".box")
+                        .data(data)
+                        .enter().append("svg")
+                        .attr("class", "box")
+                        .attr("width", width + margin.left + margin.right)
+                        .attr("height", height + margin.bottom + margin.top)
+                        .append("g")
+                        .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+                        .call(chart);
+                
+                     xAxis.ticks(d3.time.months, 1)
+                        .tickFormat(d3.time.format("%b"));
+
+                     svg.append("g")
+                         .attr("class", "x axis")
+                         .attr("transform", "translate(0," + height + ")")
+                         .call(xAxis)
+                       .selectAll("text")
+                         .attr("y", 6)
+                         .attr("x", 15)
+                         .style("text-anchor", "middle");
+
+                     svg.append("g")
+                         .attr("class", "y axis")
+                         .call(yAxis)
+                       .append("text")
+                         .attr("transform", "rotate(-90)")
+                         .attr("y", 6)
+                         .attr("dy", ".71em")
+                         .attr("x", -6)
+                         .style("text-anchor", "end")
+                         .text("");
+                
+                
+            });
+            // Returns a function to compute the tenths range.
+            
+            function tenths() {
+                return function(d, i) {
+                var q1 = d3.quantile(d, .1),
+                    q9 = d3.quantile(d, .9),
+                    i = -1,
+                    j = d.length;
+                while (d[++i] < q1);
+                while (d[--j] > q9);
+                return [i, j];
+              };
+            }
+
+        </script>
+    </body>
+</html>
